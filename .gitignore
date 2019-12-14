@@ -1,0 +1,10 @@
+src/main/java/com/nokia/as/main/jetty/JettyConfig.java
+resources/config.json
+.idea
+dependency-reduced-pom.xml
+target
+.~lock.output.csv#
+README
+resources/keystore.jks
+*.iml
+recipes
