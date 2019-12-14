@@ -1,6 +1,6 @@
-package com.nokia.as.main;
+package com.cc.as.scraping;
 
-import com.nokia.as.util.FileUtil;
+import com.cc.as.util.FileUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -10,34 +10,45 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class Main {
+public class Scraper {
+
     public static Logger logger;
+    private final String HTML_INDEX = "recipes/index.html";
+    private final String HTML_DIR = "recipes/html";
+    private final String JSON_BUNDLE = "recipes/static-recipes.json";
+    private final String JSON_DIR = "recipes/json";
 
-    public static void main(String[] args) {
+    public Scraper() {
+        logger = LoggerFactory.getLogger(Scraper.class);
+    }
+
+    public void exportToJSON() {
+        StringBuilder globalJson = new StringBuilder("[");
+
         try {
-            logger = LoggerFactory.getLogger(Main.class);
 
-            logger.info("START");
+            Charset utf8 = StandardCharsets.UTF_8;
 
-            StringBuilder globalJson = new StringBuilder("[");
-
-            String indexHtml = FileUtil.readFile("recipes/index.html", null);
+            String indexHtml = FileUtil.readFile(HTML_INDEX, null);
 
             HashMap<String, String> headLines = new HashMap<String, String>();
 
             Elements headLinesElem = Jsoup.parse(indexHtml).getElementsByClass("list").get(0)
                     .getElementsByClass("col-lg-4");
 
-            for(Element elem : headLinesElem) {
+            for (Element elem : headLinesElem) {
                 String id = StringUtils.substringBetween(
                         elem.getElementsByTag("a").get(0).attr("href"),
                         "recipe/", ".html");
@@ -45,12 +56,12 @@ public class Main {
                 headLines.put(id, headLine);
             }
 
-            Stream<Path> walk = Files.walk(Paths.get("recipes/html"));
+            Stream<Path> walk = Files.walk(Paths.get(HTML_DIR));
 
             List<String> result = walk.filter(Files::isRegularFile)
                     .map(x -> x.toString()).collect(Collectors.toList());
 
-            for(int i = 0; i < result.size(); i++) {
+            for (int i = 0; i < result.size(); i++) {
                 String html = FileUtil.readFile(result.get(i), null);
                 Document doc = Jsoup.parse(html);
 
@@ -76,11 +87,10 @@ public class Main {
                         .html();
                 String unit = preparationTime;
                 preparationTime = StringUtils.substringBetween(preparationTime, "</i> ", " ");
-                unit = StringUtils.substringBetween(unit, preparationTime+" ", "<");
-                if("min".equals(unit)) {
+                unit = StringUtils.substringBetween(unit, preparationTime + " ", "<");
+                if ("min".equals(unit)) {
                     preparationTime = "00:" + preparationTime + ":00";
-                }
-                else {
+                } else {
                     preparationTime = preparationTime + ":00:00";
                 }
 
@@ -90,11 +100,10 @@ public class Main {
                         .html();
                 unit = cookingTime;
                 cookingTime = StringUtils.substringBetween(cookingTime, "</i> ", " ");
-                unit = StringUtils.substringBetween(unit, cookingTime+" ", "<");
-                if("min".equals(unit)) {
+                unit = StringUtils.substringBetween(unit, cookingTime + " ", "<");
+                if ("min".equals(unit)) {
                     cookingTime = "00:" + cookingTime + ":00";
-                }
-                else {
+                } else {
                     cookingTime = cookingTime + ":00:00";
                 }
 
@@ -109,32 +118,32 @@ public class Main {
                 ArrayList<String> ingredients = new ArrayList<String>();
                 Elements ingredientsElem = container.getElementsByClass("ingredient-direction").get(0)
                         .getElementsByTag("ul").get(0).getElementsByTag("li");
-                ingLoop: for(Element elem : ingredientsElem) {
+                ingLoop:
+                for (Element elem : ingredientsElem) {
                     String line = elem.ownText();
                     unit = line.split(" ")[0];
-                    for(String u : units) {
-                        if(unit.contains(u)) {
+                    for (String u : units) {
+                        if (unit.contains(u)) {
                             String unitFirstPart = unit.split(u)[0];
-                            if(StringUtils.isNumeric(unitFirstPart)) {
-                                ingredients.add(unitFirstPart+"||"+u+"||"+line.split(unit + " ")[1]);
+                            if (StringUtils.isNumeric(unitFirstPart)) {
+                                ingredients.add(unitFirstPart + "||" + u + "||" + line.split(unit + " ")[1]);
                                 continue ingLoop;
                             }
                         }
                     }
-                    if(StringUtils.isNumeric(unit) || unit.contains("/")) {
+                    if (StringUtils.isNumeric(unit) || unit.contains("/")) {
                         ingredients.add(unit.replace("1/2", "0.5")
                                 .replace("3/4", "0.75")
-                                +"||null||"+line.split(unit + " ")[1]);
-                    }
-                    else {
-                        ingredients.add("null||null||"+line);
+                                + "||null||" + line.split(unit + " ")[1]);
+                    } else {
+                        ingredients.add("null||null||" + line);
                     }
                 }
 
                 ArrayList<String> directions = new ArrayList<String>();
                 Elements directionsElem = container.getElementsByClass("directions").get(0)
                         .getElementsByTag("li");
-                for(Element elem : directionsElem) {
+                for (Element elem : directionsElem) {
                     directions.add(elem.ownText());
                 }
 
@@ -155,42 +164,47 @@ public class Main {
                         .append("\"cookingTime\":\"").append(cookingTime).append("\",")
                         .append("\"description\":\"").append(description).append("\",")
                         .append("\"ingredients\":[");
-                for(int j = 0; j < ingredients.size(); j++) {
+                for (int j = 0; j < ingredients.size(); j++) {
                     String[] ingredientsSplitted = ingredients.get(j).split("\\|\\|");
                     json.append("{\"name\":\"").append(ingredientsSplitted[2]).append("\"");
-                    if(!"null".equals(ingredientsSplitted[0])) {
+                    if (!"null".equals(ingredientsSplitted[0])) {
                         json.append(",\"amount\":").append(ingredientsSplitted[0]);
                     }
-                    if(!"null".equals(ingredientsSplitted[1])) {
+                    if (!"null".equals(ingredientsSplitted[1])) {
                         json.append(",\"unit\":\"").append(ingredientsSplitted[1]).append("\"");
                     }
                     json.append("}");
-                    if(j < ingredients.size() - 1) {
+                    if (j < ingredients.size() - 1) {
                         json.append(",");
                     }
                 }
                 json.append("],\"directions\":[");
-                for(int j = 0; j < directions.size(); j++) {
+                for (int j = 0; j < directions.size(); j++) {
                     json.append("{\"description\":\"").append(directions.get(j)).append("\"");
                     json.append("}");
-                    if(j < directions.size() - 1) {
+                    if (j < directions.size() - 1) {
                         json.append(",");
                     }
                 }
                 json.append("]}");
 
+                String jsonFile = JSON_DIR + "/" + id + ".json";
+                Files.write(Paths.get(jsonFile), Arrays.asList(json.toString()), utf8);
+                logger.info("Exported file: " + jsonFile);
+
                 globalJson.append(json.toString());
-                if(i < result.size() - 1) {
+                if (i < result.size() - 1) {
                     globalJson.append(",");
                 }
             }
 
             globalJson.append("]");
 
-            System.out.println(globalJson);
+            Files.write(Paths.get(JSON_BUNDLE), Arrays.asList(globalJson.toString()), utf8);
+            logger.info("Exported file: " + JSON_BUNDLE);
 
         } catch (IOException e) {
-            logger.error("Exception in cc-scraper tool build\n" + e);
+            e.printStackTrace();
         }
 
     }

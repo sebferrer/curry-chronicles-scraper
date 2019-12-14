@@ -1,4 +1,4 @@
-package com.nokia.as.util;
+package com.cc.as.util;
 
 import java.io.IOException;
 import java.nio.charset.Charset;

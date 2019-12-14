@@ -154,7 +154,7 @@
                                 <!-- add Main-Class to manifest file -->
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.nokia.as.main.Main</mainClass>
+                                    <mainClass>com.cc.as.main.Main</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
